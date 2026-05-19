@@ -1,1 +1,4 @@
-print("Hello world, from server!")
+local ServiceRegistry = require(script.bootstrap.ServiceRegistry)
+
+ServiceRegistry:Init()
+ServiceRegistry:Start()
