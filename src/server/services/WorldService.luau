@@ -79,6 +79,24 @@ local BUILDING_ORDER = {
 	"Armory",
 }
 
+local TYCOON_PATHS = {
+	{ name = "Main Road", size = Vector3.new(14, 0.4, 118), position = Vector3.new(0, 2.25, -1) },
+	{ name = "West Road", size = Vector3.new(112, 0.4, 10), position = Vector3.new(-28, 2.3, -20) },
+	{ name = "East Road", size = Vector3.new(106, 0.4, 10), position = Vector3.new(30, 2.3, 24) },
+	{ name = "Command Road", size = Vector3.new(58, 0.4, 10), position = Vector3.new(0, 2.35, -42) },
+	{ name = "Generator Road", size = Vector3.new(158, 0.4, 8), position = Vector3.new(0, 2.4, -55) },
+}
+
+local ZONE_LAYOUT = {
+	{ name = "Recruit Wing", position = Vector3.new(-55, 2.6, -20), size = Vector3.new(30, 0.4, 26), color = Color3.fromRGB(54, 82, 58) },
+	{ name = "Training Yard", position = Vector3.new(-52, 2.6, 25), size = Vector3.new(44, 0.4, 34), color = Color3.fromRGB(82, 78, 58) },
+	{ name = "Barracks Block", position = Vector3.new(42, 2.6, -18), size = Vector3.new(38, 0.4, 30), color = Color3.fromRGB(74, 68, 60) },
+	{ name = "Support Block", position = Vector3.new(48, 2.6, 24), size = Vector3.new(34, 0.4, 28), color = Color3.fromRGB(76, 58, 58) },
+	{ name = "Armory Block", position = Vector3.new(0, 2.6, 42), size = Vector3.new(34, 0.4, 28), color = Color3.fromRGB(52, 56, 62) },
+	{ name = "Generator Block", position = Vector3.new(-76, 2.6, -55), size = Vector3.new(24, 0.4, 24), color = Color3.fromRGB(62, 92, 58) },
+	{ name = "Supply Block", position = Vector3.new(74, 2.6, -54), size = Vector3.new(26, 0.4, 26), color = Color3.fromRGB(88, 76, 50) },
+}
+
 local function makePart(parent: Instance, name: string, size: Vector3, position: Vector3, color: Color3)
 	local part = Instance.new("Part")
 	part.Name = name
@@ -108,6 +126,30 @@ local function makeLabel(parent: Instance, text: string, position: Vector3)
 	label.TextColor3 = Color3.fromRGB(235, 239, 232)
 	label.TextScaled = true
 	label.Parent = gui
+end
+
+local function makeGroundLabel(parent: Instance, text: string, position: Vector3, size: Vector3)
+	local part = makePart(parent, text .. " Ground Label", size, position, Color3.fromRGB(34, 40, 36))
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 16
+	gui.Parent = part
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(218, 224, 210)
+	label.TextScaled = true
+	label.Parent = gui
+end
+
+local function makeFence(parent: Instance, name: string, position: Vector3, size: Vector3)
+	local fence = makePart(parent, name, size, position, Color3.fromRGB(42, 48, 44))
+	fence.Material = Enum.Material.WoodPlanks
+	return fence
 end
 
 local function makeTrooper(parent: Instance, name: string, position: Vector3, color: Color3)
@@ -311,6 +353,13 @@ function WorldService:Start()
 	print("[WorldService] ready")
 end
 
+function WorldService:NotifyPlayer(player: Player, action: string, ok: boolean, message: string)
+	if self.services.RemoteService then
+		self.services.RemoteService:SendActionResult(player, action, ok, message)
+		self.services.RemoteService:SendSnapshot(player)
+	end
+end
+
 function WorldService:GetBaseName(player: Player): string
 	return "MilitaryBase_" .. player.UserId
 end
@@ -330,6 +379,66 @@ function WorldService:MakeBuilding(parent: Instance, buildingId: string)
 
 	makePart(parent, buildingId, layout.size, layout.position, layout.color)
 	makeLabel(parent, layout.label, layout.position + Vector3.new(0, layout.size.Y / 2 + 5, layout.size.Z / 2 + 1))
+end
+
+function WorldService:MakeTycoonMap(parent: Instance, player: Player)
+	for _, zone in ipairs(ZONE_LAYOUT) do
+		local zonePart = makePart(parent, zone.name, zone.size, zone.position, zone.color)
+		zonePart.Material = Enum.Material.Concrete
+		makeGroundLabel(parent, zone.name:upper(), zone.position + Vector3.new(0, 0.25, 0), Vector3.new(zone.size.X - 4, 0.2, 5))
+	end
+
+	for _, path in ipairs(TYCOON_PATHS) do
+		local road = makePart(parent, path.name, path.size, path.position, Color3.fromRGB(52, 56, 54))
+		road.Material = Enum.Material.Asphalt
+	end
+
+	makeFence(parent, "North Fence", Vector3.new(0, 5, -70), Vector3.new(184, 8, 2))
+	makeFence(parent, "South Fence", Vector3.new(0, 5, 70), Vector3.new(184, 8, 2))
+	makeFence(parent, "West Fence", Vector3.new(-92, 5, 0), Vector3.new(2, 8, 140))
+	makeFence(parent, "East Fence", Vector3.new(92, 5, 0), Vector3.new(2, 8, 140))
+
+	makePart(parent, "Front Gate Left", Vector3.new(2, 10, 20), Vector3.new(-12, 6, 70), Color3.fromRGB(60, 66, 62))
+	makePart(parent, "Front Gate Right", Vector3.new(2, 10, 20), Vector3.new(12, 6, 70), Color3.fromRGB(60, 66, 62))
+	makeGroundLabel(parent, "MISSION GATE", Vector3.new(0, 2.8, 58), Vector3.new(26, 0.2, 6))
+
+	local collector = makePart(parent, "Cash Collector Pad", Vector3.new(18, 0.8, 14), Vector3.new(-58, 2.8, -55), Color3.fromRGB(40, 150, 86))
+	collector.Material = Enum.Material.Neon
+	makeGroundLabel(parent, "COLLECT CASH", Vector3.new(-58, 3.3, -55), Vector3.new(16, 0.2, 5))
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Collect"
+	prompt.ObjectText = "Cash Generator"
+	prompt.HoldDuration = 0.2
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = collector
+
+	prompt.Triggered:Connect(function(triggeringPlayer)
+		if triggeringPlayer ~= player then
+			return
+		end
+
+		local ok = self.services.EconomyService:ClaimIncome(player)
+		local message = if ok then "Income claimed" else "No income ready"
+		self:NotifyPlayer(player, "ClaimIncome", ok, message)
+	end)
+
+	for index = 1, 5 do
+		local arrow = makePart(parent, "Progress Arrow " .. index, Vector3.new(6, 0.25, 2), Vector3.new(-45 + index * 15, 2.9, -2), Color3.fromRGB(90, 130, 95))
+		arrow.Material = Enum.Material.Neon
+	end
+end
+
+function WorldService:MakeLockedPad(parent: Instance, buildingId: string)
+	local layout = BUILDING_LAYOUT[buildingId]
+	if not layout then
+		return
+	end
+
+	local ghost = makePart(parent, "Locked " .. buildingId, layout.padSize, layout.padPosition, Color3.fromRGB(54, 58, 58))
+	ghost.Transparency = 0.35
+	makeGroundLabel(parent, "LOCKED\n" .. layout.label, layout.padPosition + Vector3.new(0, 0.45, 0), Vector3.new(layout.padSize.X - 2, 0.2, 6))
 end
 
 function WorldService:MakePurchasePad(parent: Instance, player: Player, buildingId: string)
@@ -360,6 +469,9 @@ function WorldService:MakePurchasePad(parent: Instance, player: Player, building
 
 		if self.services.BaseService:BuyBuilding(player, buildingId) then
 			self:RefreshBase(player)
+			self:NotifyPlayer(player, "BuyBuilding", true, "Purchased " .. layout.label)
+		else
+			self:NotifyPlayer(player, "BuyBuilding", false, "Cannot buy " .. layout.label)
 		end
 	end)
 end
@@ -392,6 +504,9 @@ function WorldService:MakeCommandUpgradePad(parent: Instance, player: Player)
 
 		if self.services.BaseService:UpgradeCommandCenter(player) then
 			self:RefreshBase(player)
+			self:NotifyPlayer(player, "UpgradeCommandCenter", true, "Command Center upgraded")
+		else
+			self:NotifyPlayer(player, "UpgradeCommandCenter", false, "Cannot upgrade Command Center")
 		end
 	end)
 end
@@ -405,6 +520,7 @@ function WorldService:RefreshBase(player: Player)
 	base.Parent = Workspace
 
 	makePart(base, "Base Ground", Vector3.new(180, 2, 140), Vector3.new(0, 1, 0), Color3.fromRGB(68, 82, 64))
+	self:MakeTycoonMap(base, player)
 	makePart(base, "Mission Table", Vector3.new(20, 3, 12), Vector3.new(0, 3.5, -12), Color3.fromRGB(42, 48, 54))
 	makeLabel(base, "MISSION MAP", Vector3.new(0, 7, 0))
 
@@ -413,8 +529,12 @@ function WorldService:RefreshBase(player: Player)
 	end
 
 	for _, buildingId in ipairs(BUILDING_ORDER) do
-		if not data.base.buildings[buildingId] and self.services.BaseService:CanBuyBuilding(player, buildingId) then
-			self:MakePurchasePad(base, player, buildingId)
+		if not data.base.buildings[buildingId] then
+			if self.services.BaseService:CanBuyBuilding(player, buildingId) then
+				self:MakePurchasePad(base, player, buildingId)
+			else
+				self:MakeLockedPad(base, buildingId)
+			end
 		end
 	end
 
@@ -526,7 +646,8 @@ function WorldService:UpdateFieldCommandMarker(player: Player, fireteamId: strin
 	if command == "Attack" or command == "Suppress" then
 		for _, child in ipairs(field:GetChildren()) do
 			if child:IsA("Model") and child.Name:find("Enemy") then
-				self:DamageEnemy(child, if command == "Suppress" then 8 else 14)
+				local damage = if command == "Suppress" then 8 else 14
+				self:DamageEnemy(child, damage)
 				local root = child.PrimaryPart
 				if root then
 					local coverOffset = if root.Position.Z < 0 then Vector3.new(-10, 0, -4) else Vector3.new(-10, 0, 4)

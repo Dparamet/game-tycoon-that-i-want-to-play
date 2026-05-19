@@ -44,6 +44,17 @@ function UnitService:CanUseUnit(player: Player, unitId: string): boolean
 end
 
 function UnitService:CreateCitizen(player: Player)
+	if not self.services.BaseService:HasBuilding(player, "RecruitmentOffice") then
+		return nil
+	end
+
+	if not self.services.EconomyService:Spend(player, {
+		cash = 25,
+		supplies = 0,
+	}) then
+		return nil
+	end
+
 	local unitId = Id.create("unit")
 	local now = os.time()
 	local unit = {

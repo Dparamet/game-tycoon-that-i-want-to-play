@@ -63,6 +63,24 @@ function FieldCommandController:GetFirstSquadId()
 	return nil
 end
 
+function FieldCommandController:GetNextMissionTerritoryId()
+	if not self.state then
+		return "Outskirts"
+	end
+
+	local fallback = "Outskirts"
+	for territoryId, territory in pairs(self.state.territories) do
+		if territory.unlocked then
+			fallback = territoryId
+			if territory.owner ~= "Player" then
+				return territoryId
+			end
+		end
+	end
+
+	return fallback
+end
+
 function FieldCommandController:BuildGui()
 	local playerGui = self.player:WaitForChild("PlayerGui")
 	local gui = playerGui:FindFirstChild("MvpCommandGui")
@@ -117,7 +135,7 @@ function FieldCommandController:BuildGui()
 	makeButton(list, "Start Field Mission", 1, function()
 		local squadId = self:GetFirstSquadId()
 		if squadId then
-			self:Request("StartFieldMission", { territoryId = "Outskirts", squadId = squadId, tactic = "FrontalAssault" })
+			self:Request("StartFieldMission", { territoryId = self:GetNextMissionTerritoryId(), squadId = squadId, tactic = "FrontalAssault" })
 		end
 	end)
 

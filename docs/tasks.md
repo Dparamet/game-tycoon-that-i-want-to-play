@@ -27,8 +27,10 @@ Done:
 - Task 17: Simple Field Mission
 
 Next:
-- MVP playtest polish
-- DataStore persistence
+- MVP product polish
+- Save/load playtest
+- Mission/balance pass
+- Tycoon conversion later
 ```
 
 ## Architecture Decisions

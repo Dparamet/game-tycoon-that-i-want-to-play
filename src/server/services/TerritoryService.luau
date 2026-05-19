@@ -50,6 +50,13 @@ function TerritoryService:Capture(player: Player, territoryId: string): boolean
 		state.owner = "Player"
 		state.capturedAt = os.time()
 		state.threatLevel = 0
+
+		local nextDifficulty = (Territories[territoryId].difficulty or 1) + 1
+		for nextTerritoryId, territory in pairs(Territories) do
+			if territory.difficulty == nextDifficulty and data.territories[nextTerritoryId] then
+				data.territories[nextTerritoryId].unlocked = true
+			end
+		end
 	end)
 
 	return true

@@ -49,6 +49,7 @@ function BaseUiController:Init()
 	self.requestRemote = RemoteRegistry.waitForRemoteEvent(Remotes.RequestAction)
 	self.snapshotRemote = RemoteRegistry.waitForRemoteEvent(Remotes.StateSnapshot)
 	self.resultRemote = RemoteRegistry.waitForRemoteEvent(Remotes.MissionResult)
+	self.actionResultRemote = RemoteRegistry.waitForRemoteEvent(Remotes.ActionResult)
 	self.state = nil
 end
 
@@ -60,6 +61,9 @@ function BaseUiController:Start()
 	end)
 	self.resultRemote.OnClientEvent:Connect(function(result)
 		self:ShowMissionResult(result)
+	end)
+	self.actionResultRemote.OnClientEvent:Connect(function(result)
+		self:ShowActionStatus(result)
 	end)
 	self:Request("GetSnapshot")
 	print("[BaseUiController] ready")
@@ -107,6 +111,9 @@ function BaseUiController:BuildGui()
 	self.titleLabel = createText(top, "Title", "Army Command MVP", UDim2.new(0.5, 0, 0, 22), UDim2.fromOffset(12, 4))
 	self.resourceLabel = createText(top, "Resources", "Cash 0 | Supplies 0", UDim2.new(0.5, -100, 0, 22), UDim2.new(0.5, 0, 0, 4))
 	self.resourceLabel.TextXAlignment = Enum.TextXAlignment.Right
+	self.statusLabel = createText(top, "Status", "Ready", UDim2.new(0.6, -120, 0, 18), UDim2.fromOffset(12, 26))
+	self.statusLabel.TextColor3 = Color3.fromRGB(190, 210, 190)
+	self.statusLabel.TextSize = 12
 
 	local toggle = Instance.new("TextButton")
 	toggle.Name = "ToggleUiButton"
@@ -164,16 +171,25 @@ function BaseUiController:BuildGui()
 	createButton(buttons, "Refresh", 1, function()
 		self:Request("GetSnapshot")
 	end)
-	createButton(buttons, "Recruit Citizen", 2, function()
+	createButton(buttons, "Manual Save", 2, function()
+		self:Request("ManualSave")
+	end)
+	createButton(buttons, "Claim Income", 3, function()
+		self:Request("ClaimIncome")
+	end)
+	createButton(buttons, "Recruit Citizen", 4, function()
 		self:Request("CreateCitizen")
 	end)
-	createButton(buttons, "Buy Training Ground", 3, function()
+	createButton(buttons, "Buy Recruitment Office", 5, function()
+		self:Request("BuyBuilding", { buildingId = "RecruitmentOffice" })
+	end)
+	createButton(buttons, "Buy Training Ground", 6, function()
 		self:Request("BuyBuilding", { buildingId = "TrainingGround" })
 	end)
-	createButton(buttons, "Upgrade Command", 4, function()
+	createButton(buttons, "Upgrade Command", 7, function()
 		self:Request("UpgradeCommandCenter")
 	end)
-	createButton(buttons, "Start Basic Training", 5, function()
+	createButton(buttons, "Start Basic Training", 8, function()
 		local unit = self:FindUnit(function(candidate)
 			return candidate.rank == "Citizen" and candidate.status == "Available"
 		end)
@@ -181,43 +197,49 @@ function BaseUiController:BuildGui()
 			self:Request("StartTraining", { unitId = unit.id, courseId = "BasicArmyTraining", mode = "Passive" })
 		end
 	end)
-	createButton(buttons, "Process Training", 6, function()
+	createButton(buttons, "Process Training", 9, function()
 		self:Request("ProcessTraining")
 	end)
-	createButton(buttons, "Buy Barracks", 7, function()
+	createButton(buttons, "Process All Timers", 10, function()
+		self:Request("ProcessAll")
+	end)
+	createButton(buttons, "Buy Barracks", 11, function()
 		self:Request("BuyBuilding", { buildingId = "Barracks" })
 	end)
-	createButton(buttons, "Buy Supply Depot", 8, function()
+	createButton(buttons, "Buy Supply Depot", 12, function()
 		self:Request("BuyBuilding", { buildingId = "SupplyDepot" })
 	end)
-	createButton(buttons, "Buy Medical Tent", 9, function()
+	createButton(buttons, "Buy Medical Tent", 13, function()
 		self:Request("BuyBuilding", { buildingId = "MedicalTent" })
 	end)
-	createButton(buttons, "Buy Armory", 10, function()
+	createButton(buttons, "Buy Armory", 14, function()
 		self:Request("BuyBuilding", { buildingId = "Armory" })
 	end)
-	createButton(buttons, "Create Squad", 11, function()
+	createButton(buttons, "Create Squad", 15, function()
 		self:Request("CreateSquad", { name = "1st Squad" })
 	end)
-	createButton(buttons, "Assign To Alpha", 12, function()
+	createButton(buttons, "Assign To Alpha", 16, function()
 		self:AssignFirstAvailable("Alpha")
 	end)
-	createButton(buttons, "Assign To Bravo", 13, function()
+	createButton(buttons, "Assign To Bravo", 17, function()
 		self:AssignFirstAvailable("Bravo")
 	end)
-	createButton(buttons, "Run Auto Mission", 14, function()
+	createButton(buttons, "Run Auto Mission", 18, function()
 		local squadId = self:GetFirstSquadId()
 		if squadId then
-			self:Request("StartAutoMission", { territoryId = "Outskirts", squadId = squadId, tactic = "FrontalAssault" })
+			self:Request("StartAutoMission", { territoryId = self:GetNextMissionTerritoryId(), squadId = squadId, tactic = "FrontalAssault" })
 		end
 	end)
-	createButton(buttons, "Start Recovery", 15, function()
+	createButton(buttons, "Start Recovery", 19, function()
 		local unit = self:FindUnit(function(candidate)
 			return candidate.status == "Wounded"
 		end)
 		if unit then
 			self:Request("StartRecovery", { unitId = unit.id })
 		end
+	end)
+	createButton(buttons, "Process Recovery", 20, function()
+		self:Request("ProcessRecovery")
 	end)
 
 	local roster = Instance.new("Frame")
@@ -305,6 +327,25 @@ function BaseUiController:SetPanelsVisible(visible: boolean)
 	end
 end
 
+function BaseUiController:ShowActionStatus(result)
+	if not self.statusLabel then
+		return
+	end
+
+	local prefix = if result.ok then "OK" else "NO"
+	self.statusLabel.Text = string.format("%s: %s", prefix, result.message or result.action or "Action")
+	self.statusLabel.TextColor3 = if result.ok then Color3.fromRGB(160, 220, 170) else Color3.fromRGB(240, 170, 150)
+
+	local token = os.clock()
+	self.lastStatusToken = token
+	task.delay(4, function()
+		if self.lastStatusToken == token and self.statusLabel then
+			self.statusLabel.Text = "Ready"
+			self.statusLabel.TextColor3 = Color3.fromRGB(190, 210, 190)
+		end
+	end)
+end
+
 function BaseUiController:ShowMissionResult(result)
 	if not self.resultPanel then
 		return
@@ -363,6 +404,24 @@ function BaseUiController:GetFirstSquadId()
 	end
 
 	return nil
+end
+
+function BaseUiController:GetNextMissionTerritoryId()
+	if not self.state then
+		return "Outskirts"
+	end
+
+	local fallback = "Outskirts"
+	for territoryId, territory in pairs(self.state.territories) do
+		if territory.unlocked then
+			fallback = territoryId
+			if territory.owner ~= "Player" then
+				return territoryId
+			end
+		end
+	end
+
+	return fallback
 end
 
 function BaseUiController:AssignFirstAvailable(fireteamId: string)

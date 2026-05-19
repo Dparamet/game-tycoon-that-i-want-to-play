@@ -21,6 +21,19 @@ function EconomyService:Start()
 	print("[EconomyService] ready")
 end
 
+function EconomyService:GetPassiveIncome(player: Player)
+	local data = self.services.DataService:Get(player)
+	local buildingCount = 0
+	for _ in pairs(data.base.buildings) do
+		buildingCount += 1
+	end
+
+	return {
+		cash = 50 + buildingCount * 10,
+		supplies = if data.base.buildings.SupplyDepot then 25 else 5,
+	}
+end
+
 function EconomyService:CanAfford(player: Player, cost): boolean
 	local data = self.services.DataService:Get(player)
 	return data.resources.cash >= getAmount(cost, "cash") and data.resources.supplies >= getAmount(cost, "supplies")
@@ -44,6 +57,11 @@ function EconomyService:Add(player: Player, rewards)
 		data.resources.cash += getAmount(rewards, "cash")
 		data.resources.supplies += getAmount(rewards, "supplies")
 	end)
+end
+
+function EconomyService:ClaimIncome(player: Player)
+	self:Add(player, self:GetPassiveIncome(player))
+	return true
 end
 
 return EconomyService
