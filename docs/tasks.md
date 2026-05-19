@@ -16,10 +16,19 @@ Done:
 - Task 6: Base Building Purchase
 - Task 7: Unit Creation And Lifecycle
 - Task 8: Passive Training Queue
-
-Next:
 - Task 9: Offline Training
 - Task 10: Squad Creation
+- Task 11: Unit Assignment To Fireteams
+- Task 12: Territory State
+- Task 13: Auto Resolve Mission
+- Task 14: Recovery Queue
+- Task 15: Offline Recovery
+- Task 16: Field Command Remotes
+- Task 17: Simple Field Mission
+
+Next:
+- MVP playtest polish
+- DataStore persistence
 ```
 
 ## Architecture Decisions

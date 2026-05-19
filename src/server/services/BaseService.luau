@@ -54,4 +54,31 @@ function BaseService:BuyBuilding(player: Player, buildingId: string): boolean
 	return true
 end
 
+function BaseService:UpgradeCommandCenter(player: Player): boolean
+	local data = self.services.DataService:Get(player)
+	local commandCenter = Buildings.CommandCenter
+	local currentLevel = data.base.commandCenterLevel
+
+	if currentLevel >= commandCenter.maxLevel then
+		return false
+	end
+
+	local nextLevel = currentLevel + 1
+	local cost = {
+		cash = 100 * nextLevel,
+		supplies = 25 * (nextLevel - 1),
+	}
+
+	if not self.services.EconomyService:Spend(player, cost) then
+		return false
+	end
+
+	self.services.DataService:Update(player, function(updatedData)
+		updatedData.base.commandCenterLevel = nextLevel
+		updatedData.base.buildings.CommandCenter.level = nextLevel
+	end)
+
+	return true
+end
+
 return BaseService

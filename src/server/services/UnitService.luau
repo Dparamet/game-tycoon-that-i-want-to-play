@@ -13,6 +13,14 @@ local blockedStatuses = {
 	[Statuses.KIA] = true,
 }
 
+local function removeValue(list, value)
+	for index = #list, 1, -1 do
+		if list[index] == value then
+			table.remove(list, index)
+		end
+	end
+end
+
 function UnitService:Init(services)
 	self.services = services
 end
@@ -144,6 +152,27 @@ function UnitService:MarkKIA(player: Player, unitId: string): boolean
 
 	self.services.DataService:Update(player, function(data)
 		local target = data.units[unitId]
+		local squadId = target.squadId
+		local fireteamId = target.fireteamId
+
+		if squadId and data.squads[squadId] then
+			local squad = data.squads[squadId]
+			removeValue(squad.memberUnitIds, unitId)
+
+			if squad.commanderUnitId == unitId then
+				squad.commanderUnitId = nil
+			end
+
+			if fireteamId and squad.fireteams[fireteamId] then
+				local fireteam = squad.fireteams[fireteamId]
+				removeValue(fireteam.memberUnitIds, unitId)
+
+				if fireteam.leaderUnitId == unitId then
+					fireteam.leaderUnitId = nil
+				end
+			end
+		end
+
 		target.status = Statuses.KIA
 		target.health = 0
 		target.injury = {

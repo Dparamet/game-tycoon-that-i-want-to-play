@@ -11,6 +11,7 @@ local serviceModules = {
 	"TerritoryService",
 	"CombatService",
 	"MissionService",
+	"WorldService",
 	"RemoteService",
 }
 

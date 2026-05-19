@@ -33,4 +33,9 @@ function RemoteRegistry.ensureAll()
 	end
 end
 
+function RemoteRegistry.waitForRemoteEvent(name: string): RemoteEvent
+	local folder = ReplicatedStorage:WaitForChild("GameRemotes")
+	return folder:WaitForChild(name) :: RemoteEvent
+end
+
 return RemoteRegistry
