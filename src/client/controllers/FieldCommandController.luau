@@ -80,8 +80,8 @@ function FieldCommandController:BuildGui()
 	panel.Name = "FieldCommandPanel"
 	panel.BackgroundColor3 = Color3.fromRGB(30, 34, 38)
 	panel.BorderSizePixel = 0
-	panel.Position = UDim2.new(1, -236, 1, -344)
-	panel.Size = UDim2.fromOffset(220, 328)
+	panel.Position = UDim2.new(1, -196, 1, -286)
+	panel.Size = UDim2.fromOffset(184, 272)
 	panel.Parent = gui
 
 	local corner = Instance.new("UICorner")
@@ -99,8 +99,12 @@ function FieldCommandController:BuildGui()
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = panel
 
-	local list = Instance.new("Frame")
+	local list = Instance.new("ScrollingFrame")
 	list.BackgroundTransparency = 1
+	list.BorderSizePixel = 0
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	list.CanvasSize = UDim2.fromScale(0, 0)
+	list.ScrollBarThickness = 4
 	list.Position = UDim2.fromOffset(12, 40)
 	list.Size = UDim2.new(1, -24, 1, -52)
 	list.Parent = panel

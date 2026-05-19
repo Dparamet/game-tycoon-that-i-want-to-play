@@ -3,4 +3,5 @@ return {
 	StateSnapshot = "StateSnapshot",
 	StatePatch = "StatePatch",
 	FieldCommand = "FieldCommand",
+	MissionResult = "MissionResult",
 }

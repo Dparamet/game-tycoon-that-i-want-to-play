@@ -14,6 +14,7 @@ function RemoteService:Start()
 	RemoteRegistry.ensureAll()
 	self.requestRemote = RemoteRegistry.ensureRemoteEvent(Remotes.RequestAction)
 	self.snapshotRemote = RemoteRegistry.ensureRemoteEvent(Remotes.StateSnapshot)
+	self.resultRemote = RemoteRegistry.ensureRemoteEvent(Remotes.MissionResult)
 
 	self.requestRemote.OnServerEvent:Connect(function(player, request)
 		self:HandleRequest(player, request)
@@ -41,6 +42,7 @@ function RemoteService:HandleRequest(player: Player, request)
 	local payload = if type(request.payload) == "table" then request.payload else {}
 	local action = request.action
 	local ok = false
+	local result = nil
 
 	if action == "GetSnapshot" then
 		ok = true
@@ -59,19 +61,27 @@ function RemoteService:HandleRequest(player: Player, request)
 	elseif action == "AssignUnit" then
 		ok = self.services.SquadService:AssignUnit(player, payload.squadId, payload.fireteamId or "Alpha", payload.unitId)
 	elseif action == "StartAutoMission" then
-		ok = self.services.MissionService:StartAutoMission(player, payload.territoryId or "Outskirts", payload.squadId, payload.tactic or "FrontalAssault") ~= nil
+		result = self.services.MissionService:StartAutoMission(player, payload.territoryId or "Outskirts", payload.squadId, payload.tactic or "FrontalAssault")
+		ok = result ~= nil
 	elseif action == "StartFieldMission" then
 		ok = self.services.MissionService:StartFieldMission(player, payload.territoryId or "Outskirts", payload.squadId, payload.tactic or "FrontalAssault") ~= nil
 	elseif action == "FieldCommand" then
 		ok = self.services.MissionService:IssueFieldCommand(player, payload.fireteamId or "Alpha", payload.command or "Move")
 	elseif action == "CompleteFieldMission" then
-		ok = self.services.MissionService:CompleteFieldMission(player) ~= nil
+		result = self.services.MissionService:CompleteFieldMission(player)
+		ok = result ~= nil
 	elseif action == "StartRecovery" then
 		ok = self.services.RecoveryService:StartRecovery(player, payload.unitId)
 	end
 
 	if not ok then
 		warn(string.format("[RemoteService] rejected action %s for %s", action, player.Name))
+	elseif result then
+		self.resultRemote:FireClient(player, result)
+	end
+
+	if ok and self.services.WorldService then
+		self.services.WorldService:RefreshBase(player)
 	end
 
 	self:SendSnapshot(player)

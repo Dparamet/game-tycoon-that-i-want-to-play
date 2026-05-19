@@ -63,7 +63,7 @@ function DataService:CreateDefaultData()
 	return {
 		version = self.VERSION,
 		resources = {
-			cash = 500,
+			cash = 220,
 			supplies = 100,
 		},
 		base = {
@@ -102,6 +102,12 @@ function DataService:Load(player: Player)
 	self:ProcessOfflineProgress(player, data, os.time())
 
 	print(string.format("[DataService] loaded default profile for %s", player.Name))
+
+	task.defer(function()
+		if self.services and self.services.WorldService then
+			self.services.WorldService:BuildBase(player)
+		end
+	end)
 
 	return data
 end

@@ -48,6 +48,7 @@ function BaseUiController:Init()
 	self.player = Players.LocalPlayer
 	self.requestRemote = RemoteRegistry.waitForRemoteEvent(Remotes.RequestAction)
 	self.snapshotRemote = RemoteRegistry.waitForRemoteEvent(Remotes.StateSnapshot)
+	self.resultRemote = RemoteRegistry.waitForRemoteEvent(Remotes.MissionResult)
 	self.state = nil
 end
 
@@ -56,6 +57,9 @@ function BaseUiController:Start()
 	self.snapshotRemote.OnClientEvent:Connect(function(snapshot)
 		self.state = snapshot
 		self:Render()
+	end)
+	self.resultRemote.OnClientEvent:Connect(function(result)
+		self:ShowMissionResult(result)
 	end)
 	self:Request("GetSnapshot")
 	print("[BaseUiController] ready")
@@ -92,16 +96,16 @@ function BaseUiController:BuildGui()
 	top.Name = "TopBar"
 	top.BackgroundColor3 = Color3.fromRGB(28, 34, 34)
 	top.BorderSizePixel = 0
-	top.Position = UDim2.fromOffset(16, 12)
-	top.Size = UDim2.new(1, -32, 0, 54)
+	top.Position = UDim2.fromOffset(12, 8)
+	top.Size = UDim2.new(1, -24, 0, 46)
 	top.Parent = root
 
 	local topCorner = Instance.new("UICorner")
 	topCorner.CornerRadius = UDim.new(0, 8)
 	topCorner.Parent = top
 
-	self.titleLabel = createText(top, "Title", "Army Command MVP", UDim2.new(0.5, 0, 0, 24), UDim2.fromOffset(14, 6))
-	self.resourceLabel = createText(top, "Resources", "Cash 0 | Supplies 0", UDim2.new(0.5, -108, 0, 24), UDim2.new(0.5, 0, 0, 6))
+	self.titleLabel = createText(top, "Title", "Army Command MVP", UDim2.new(0.5, 0, 0, 22), UDim2.fromOffset(12, 4))
+	self.resourceLabel = createText(top, "Resources", "Cash 0 | Supplies 0", UDim2.new(0.5, -100, 0, 22), UDim2.new(0.5, 0, 0, 4))
 	self.resourceLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 	local toggle = Instance.new("TextButton")
@@ -110,8 +114,8 @@ function BaseUiController:BuildGui()
 	toggle.BackgroundColor3 = Color3.fromRGB(64, 72, 76)
 	toggle.BorderSizePixel = 0
 	toggle.Font = Enum.Font.GothamBold
-	toggle.Position = UDim2.new(1, -12, 0, 10)
-	toggle.Size = UDim2.fromOffset(78, 32)
+	toggle.Position = UDim2.new(1, -10, 0, 8)
+	toggle.Size = UDim2.fromOffset(74, 30)
 	toggle.Text = "Hide UI"
 	toggle.TextColor3 = Color3.fromRGB(246, 248, 240)
 	toggle.TextSize = 12
@@ -130,8 +134,8 @@ function BaseUiController:BuildGui()
 	panel.Name = "ActionPanel"
 	panel.BackgroundColor3 = Color3.fromRGB(34, 40, 38)
 	panel.BorderSizePixel = 0
-	panel.Position = UDim2.fromOffset(16, 82)
-	panel.Size = UDim2.fromOffset(260, 438)
+	panel.Position = UDim2.fromOffset(12, 64)
+	panel.Size = UDim2.fromOffset(220, 334)
 	panel.Parent = root
 	self.actionPanel = panel
 
@@ -149,7 +153,7 @@ function BaseUiController:BuildGui()
 	buttons.CanvasSize = UDim2.fromScale(0, 0)
 	buttons.ScrollBarThickness = 4
 	buttons.Position = UDim2.fromOffset(12, 42)
-	buttons.Size = UDim2.new(1, -24, 1, -54)
+	buttons.Size = UDim2.new(1, -24, 1, -50)
 	buttons.Parent = panel
 
 	local layout = Instance.new("UIListLayout")
@@ -220,8 +224,8 @@ function BaseUiController:BuildGui()
 	roster.Name = "Roster"
 	roster.BackgroundColor3 = Color3.fromRGB(30, 34, 34)
 	roster.BorderSizePixel = 0
-	roster.Position = UDim2.fromOffset(292, 82)
-	roster.Size = UDim2.new(1, -308, 0, 438)
+	roster.Position = UDim2.fromOffset(244, 64)
+	roster.Size = UDim2.fromOffset(390, 334)
 	roster.Parent = root
 	self.rosterPanel = roster
 
@@ -229,9 +233,52 @@ function BaseUiController:BuildGui()
 	rosterCorner.CornerRadius = UDim.new(0, 8)
 	rosterCorner.Parent = roster
 
-	self.summaryLabel = createText(roster, "Summary", "Loading...", UDim2.new(1, -24, 0, 60), UDim2.fromOffset(12, 10))
-	self.rosterText = createText(roster, "RosterText", "", UDim2.new(1, -24, 1, -88), UDim2.fromOffset(12, 76))
+	self.summaryLabel = createText(roster, "Summary", "Loading...", UDim2.new(1, -24, 0, 46), UDim2.fromOffset(12, 8))
+	self.rosterText = createText(roster, "RosterText", "", UDim2.new(1, -24, 1, -64), UDim2.fromOffset(12, 58))
 	self.rosterText.TextYAlignment = Enum.TextYAlignment.Top
+
+	local resultPanel = Instance.new("Frame")
+	resultPanel.Name = "MissionResultPanel"
+	resultPanel.AnchorPoint = Vector2.new(0.5, 0)
+	resultPanel.BackgroundColor3 = Color3.fromRGB(28, 34, 34)
+	resultPanel.BorderSizePixel = 0
+	resultPanel.Position = UDim2.new(0.5, 0, 0, 64)
+	resultPanel.Size = UDim2.fromOffset(330, 190)
+	resultPanel.Visible = false
+	resultPanel.Parent = root
+	self.resultPanel = resultPanel
+
+	local resultCorner = Instance.new("UICorner")
+	resultCorner.CornerRadius = UDim.new(0, 8)
+	resultCorner.Parent = resultPanel
+
+	self.resultTitle = createText(resultPanel, "ResultTitle", "Mission Result", UDim2.new(1, -24, 0, 28), UDim2.fromOffset(12, 10))
+	self.resultTitle.Font = Enum.Font.GothamBold
+	self.resultTitle.TextSize = 16
+
+	self.resultText = createText(resultPanel, "ResultText", "", UDim2.new(1, -24, 1, -66), UDim2.fromOffset(12, 42))
+	self.resultText.TextYAlignment = Enum.TextYAlignment.Top
+
+	local close = Instance.new("TextButton")
+	close.Name = "CloseResultButton"
+	close.BackgroundColor3 = Color3.fromRGB(66, 82, 72)
+	close.BorderSizePixel = 0
+	close.Font = Enum.Font.GothamBold
+	close.Position = UDim2.new(1, -104, 1, -42)
+	close.Size = UDim2.fromOffset(92, 30)
+	close.Text = "Close"
+	close.TextColor3 = Color3.fromRGB(246, 248, 240)
+	close.TextSize = 13
+	close.Parent = resultPanel
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = close
+
+	close.Activated:Connect(function()
+		resultPanel.Visible = false
+	end)
+
 	self.panelsVisible = true
 end
 
@@ -244,6 +291,9 @@ function BaseUiController:SetPanelsVisible(visible: boolean)
 	if self.rosterPanel then
 		self.rosterPanel.Visible = visible
 	end
+	if self.resultPanel then
+		self.resultPanel.Visible = false
+	end
 
 	local fieldPanel = self.gui and self.gui:FindFirstChild("FieldCommandPanel")
 	if fieldPanel and fieldPanel:IsA("GuiObject") then
@@ -253,6 +303,40 @@ function BaseUiController:SetPanelsVisible(visible: boolean)
 	if self.toggleButton then
 		self.toggleButton.Text = if visible then "Hide UI" else "Show UI"
 	end
+end
+
+function BaseUiController:ShowMissionResult(result)
+	if not self.resultPanel then
+		return
+	end
+
+	local title = if result.victory then "Mission Victory" else "Mission Failed"
+	local rewards = result.rewards or { cash = 0, supplies = 0 }
+	local unitLines = {}
+	local wounded = 0
+	local kia = 0
+	local xpTotal = 0
+
+	for unitId, unitResult in pairs(result.unitResults or {}) do
+		xpTotal += unitResult.xp or 0
+		if unitResult.status == "Wounded" then
+			wounded += 1
+		elseif unitResult.status == "KIA" then
+			kia += 1
+		end
+		table.insert(unitLines, string.format("%s: %s +%d XP", unitId, unitResult.status, unitResult.xp or 0))
+	end
+
+	self.resultTitle.Text = title
+	self.resultText.Text = table.concat({
+		string.format("Rewards: Cash %d | Supplies %d", rewards.cash or 0, rewards.supplies or 0),
+		string.format("XP gained: %d", xpTotal),
+		string.format("Wounded: %d | KIA: %d", wounded, kia),
+		string.format("Territory captured: %s", tostring(result.territoryCaptured == true)),
+		"",
+		table.concat(unitLines, "\n"),
+	}, "\n")
+	self.resultPanel.Visible = true
 end
 
 function BaseUiController:FindUnit(predicate)

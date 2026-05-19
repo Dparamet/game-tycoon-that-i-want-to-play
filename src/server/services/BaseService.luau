@@ -17,6 +17,10 @@ function BaseService:HasBuilding(player: Player, buildingId: string): boolean
 	return data.base.buildings[buildingId] ~= nil
 end
 
+function BaseService:GetBuildingConfig(buildingId: string)
+	return Buildings[buildingId]
+end
+
 function BaseService:MeetsRequirements(player: Player, building): boolean
 	local requirements = building.requires
 	if not requirements then
@@ -27,6 +31,15 @@ function BaseService:MeetsRequirements(player: Player, building): boolean
 	local requiredCommandLevel = requirements.commandCenterLevel or 1
 
 	return data.base.commandCenterLevel >= requiredCommandLevel
+end
+
+function BaseService:CanBuyBuilding(player: Player, buildingId: string): boolean
+	local building = Buildings[buildingId]
+	if not building or self:HasBuilding(player, buildingId) then
+		return false
+	end
+
+	return self:MeetsRequirements(player, building)
 end
 
 function BaseService:BuyBuilding(player: Player, buildingId: string): boolean
