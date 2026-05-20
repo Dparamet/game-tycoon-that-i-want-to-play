@@ -115,10 +115,31 @@ function SquadService:AssignUnit(player: Player, squadId: string, fireteamId: st
 		return false
 	end
 
-	self.services.DataService:Update(player, function(data)
-		local targetSquad = data.squads[squadId]
+	-- Enforce CC levels and building requirements
+	local data = self.services.DataService:Get(player)
+	local ccLevel = data.base.commandCenterLevel or 1
+
+	if ccLevel == 1 then
+		if fireteamId == "Bravo" then
+			return false
+		end
+		if #squad.memberUnitIds >= 4 then
+			return false
+		end
+	else
+		-- CC level 2+ requires Barracks
+		if not self.services.BaseService:HasBuilding(player, "Barracks") then
+			return false
+		end
+		if #squad.memberUnitIds >= 8 then
+			return false
+		end
+	end
+
+	self.services.DataService:Update(player, function(updatedData)
+		local targetSquad = updatedData.squads[squadId]
 		local targetFireteam = targetSquad.fireteams[fireteamId]
-		local targetUnit = data.units[unitId]
+		local targetUnit = updatedData.units[unitId]
 
 		table.insert(targetSquad.memberUnitIds, unitId)
 		table.insert(targetFireteam.memberUnitIds, unitId)

@@ -48,6 +48,26 @@ function UnitService:CreateCitizen(player: Player)
 		return nil
 	end
 
+	local data = self.services.DataService:Get(player)
+	local unitCount = 0
+	for _ in pairs(data.units) do
+		unitCount += 1
+	end
+
+	local maxCapacity = 6
+	if self.services.BaseService:HasBuilding(player, "Barracks") then
+		local barracksLevel = 1
+		local barracksState = data.base.buildings.Barracks
+		if barracksState then
+			barracksLevel = barracksState.level or 1
+		end
+		maxCapacity += barracksLevel * 8
+	end
+
+	if unitCount >= maxCapacity then
+		return nil
+	end
+
 	if not self.services.EconomyService:Spend(player, {
 		cash = 25,
 		supplies = 0,

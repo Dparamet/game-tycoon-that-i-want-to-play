@@ -40,6 +40,23 @@ function RemoteService:GetFailureReason(player: Player, action: string, payload)
 		if not self.services.BaseService:HasBuilding(player, "RecruitmentOffice") then
 			return "Need Recruitment Office"
 		end
+		local data = self.services.DataService:Get(player)
+		local unitCount = 0
+		for _ in pairs(data.units) do
+			unitCount += 1
+		end
+		local maxCapacity = 6
+		if self.services.BaseService:HasBuilding(player, "Barracks") then
+			local barracksLevel = 1
+			local barracksState = data.base.buildings.Barracks
+			if barracksState then
+				barracksLevel = barracksState.level or 1
+			end
+			maxCapacity += barracksLevel * 8
+		end
+		if unitCount >= maxCapacity then
+			return "Max Unit Capacity Reached (Build/Upgrade Barracks)"
+		end
 		return "Need Cash 25"
 	elseif action == "BuyBuilding" then
 		return "Cannot buy building yet"
@@ -50,7 +67,7 @@ function RemoteService:GetFailureReason(player: Player, action: string, payload)
 	elseif action == "CreateSquad" then
 		return "Cannot create squad"
 	elseif action == "AssignUnit" then
-		return "Need available unit and squad"
+		return "Need available unit, squad (Barracks required at CC Lv2+, max size 4 at CC Lv1, 8 at CC Lv2+)"
 	elseif action == "StartAutoMission" or action == "StartFieldMission" then
 		return "Need assigned squad and available territory"
 	elseif action == "CompleteFieldMission" then
@@ -90,13 +107,16 @@ function RemoteService:HandleRequest(player: Player, request)
 	local action = request.action
 	local ok = false
 	local result = nil
+	local customMessage = nil
 
 	if action == "GetSnapshot" then
 		ok = true
 	elseif action == "ManualSave" then
 		ok = self.services.DataService:Save(player)
 	elseif action == "ClaimIncome" then
-		ok = self.services.EconomyService:ClaimIncome(player)
+		local success, msg = self.services.EconomyService:ClaimIncome(player)
+		ok = success
+		customMessage = msg
 	elseif action == "CreateCitizen" then
 		ok = self.services.UnitService:CreateCitizen(player) ~= nil
 	elseif action == "BuyBuilding" then
@@ -138,7 +158,7 @@ function RemoteService:HandleRequest(player: Player, request)
 		self:SendActionResult(player, action, true, "Mission resolved")
 		self.resultRemote:FireClient(player, result)
 	else
-		self:SendActionResult(player, action, true, "Done")
+		self:SendActionResult(player, action, true, customMessage or "Done")
 	end
 
 	if ok and self.services.WorldService then

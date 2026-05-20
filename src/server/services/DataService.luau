@@ -99,6 +99,7 @@ function DataService:CreateDefaultData()
 		trainingQueue = {},
 		recoveryQueue = {},
 		lastLogoutTime = os.time(),
+		lastIncomeClaimTime = os.time(),
 	}
 end
 

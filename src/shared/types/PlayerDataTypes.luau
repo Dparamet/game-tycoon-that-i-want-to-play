@@ -24,6 +24,7 @@ export type PlayerData = {
 	trainingQueue: {[string]: any},
 	recoveryQueue: {[string]: any},
 	lastLogoutTime: number,
+	lastIncomeClaimTime: number,
 }
 
 return {}

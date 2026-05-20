@@ -110,6 +110,24 @@ local function makePart(parent: Instance, name: string, size: Vector3, position:
 	return part
 end
 
+local function makeTouchPad(pad: Part, player: Player, onTouch: () -> ())
+	local debounce = false
+	pad.Touched:Connect(function(otherPart)
+		local character = otherPart.Parent
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.Health > 0 then
+			local touchingPlayer = game.Players:GetPlayerFromCharacter(character)
+			if touchingPlayer == player and not debounce then
+				debounce = true
+				task.delay(0.6, function()
+					debounce = false
+				end)
+				onTouch()
+			end
+		end
+	end)
+end
+
 local function makeLabel(parent: Instance, text: string, position: Vector3)
 	local part = makePart(parent, text .. " Sign", Vector3.new(10, 4, 0.4), position, Color3.fromRGB(28, 32, 36))
 	local gui = Instance.new("SurfaceGui")
@@ -377,8 +395,319 @@ function WorldService:MakeBuilding(parent: Instance, buildingId: string)
 		return
 	end
 
-	makePart(parent, buildingId, layout.size, layout.position, layout.color)
-	makeLabel(parent, layout.label, layout.position + Vector3.new(0, layout.size.Y / 2 + 5, layout.size.Z / 2 + 1))
+	-- Create a model to group all the building parts
+	local model = Instance.new("Model")
+	model.Name = buildingId
+	model.Parent = parent
+
+	local pos = layout.position
+	local size = layout.size
+	local color = layout.color
+
+	-- Helper to create parts parented to this model
+	local function createBPart(name: string, pSize: Vector3, pPos: Vector3, pColor: Color3, material: Enum.Material?): Part
+		local p = makePart(model, name, pSize, pPos, pColor)
+		if material then
+			p.Material = material
+		end
+		return p
+	end
+
+	-- Foundation: Standard base slab for all buildings
+	local foundation = createBPart("Foundation", Vector3.new(size.X + 2, 0.8, size.Z + 2), pos - Vector3.new(0, size.Y/2 - 0.4, 0), Color3.fromRGB(44, 48, 52), Enum.Material.Concrete)
+
+	if buildingId == "CommandCenter" then
+		-- Command Center details:
+		-- Main center block (first story)
+		local baseBlock = createBPart("BaseBlock", Vector3.new(size.X - 2, size.Y - 6, size.Z - 2), pos - Vector3.new(0, 3, 0), color, Enum.Material.SmoothPlastic)
+		-- Second story
+		local upperBlock = createBPart("UpperBlock", Vector3.new(size.X - 8, 5, size.Z - 8), pos + Vector3.new(0, size.Y/2 - 2.5, 0), Color3.fromRGB(52, 60, 68), Enum.Material.SmoothPlastic)
+		-- Command windows (neon light stripe in the front)
+		createBPart("CommandWindow", Vector3.new(size.X - 12, 1.2, 0.4), pos + Vector3.new(0, size.Y/2 - 2, size.Z/2 - 4.2), Color3.fromRGB(120, 200, 255), Enum.Material.Neon)
+		-- Four tall black corner pillars
+		local pillarHeight = size.Y - 1
+		local px = (size.X - 2)/2
+		local pz = (size.Z - 2)/2
+		local pColor = Color3.fromRGB(24, 28, 30)
+		createBPart("PillarNW", Vector3.new(1.8, pillarHeight, 1.8), pos + Vector3.new(-px, 0.5, -pz), pColor, Enum.Material.Metal)
+		createBPart("PillarNE", Vector3.new(1.8, pillarHeight, 1.8), pos + Vector3.new(px, 0.5, -pz), pColor, Enum.Material.Metal)
+		createBPart("PillarSW", Vector3.new(1.8, pillarHeight, 1.8), pos + Vector3.new(-px, 0.5, pz), pColor, Enum.Material.Metal)
+		createBPart("PillarSE", Vector3.new(1.8, pillarHeight, 1.8), pos + Vector3.new(px, 0.5, pz), pColor, Enum.Material.Metal)
+		-- Helipad outline on roof
+		createBPart("HelipadBorder", Vector3.new(size.X - 12, 0.25, size.Z - 12), pos + Vector3.new(0, size.Y/2 + 0.1, 0), Color3.fromRGB(196, 160, 74), Enum.Material.Concrete)
+		createBPart("HelipadLine1", Vector3.new(1, 0.3, 8), pos + Vector3.new(0, size.Y/2 + 0.15, 0), Color3.fromRGB(196, 160, 74), Enum.Material.Neon)
+		createBPart("HelipadLine2", Vector3.new(8, 0.3, 1), pos + Vector3.new(0, size.Y/2 + 0.15, 0), Color3.fromRGB(196, 160, 74), Enum.Material.Neon)
+
+	elseif buildingId == "RecruitmentOffice" then
+		-- Recruitment Office details:
+		-- Main building block (rustic wood look)
+		local cabin = createBPart("Cabin", Vector3.new(size.X - 2, size.Y - 1, size.Z - 2), pos, color, Enum.Material.WoodPlanks)
+		-- Awning roof over porch
+		local roof = createBPart("AwningRoof", Vector3.new(size.X, 1.2, size.Z - 2), pos + Vector3.new(0, size.Y/2 + 0.6, 0), Color3.fromRGB(64, 52, 44), Enum.Material.WoodPlanks)
+		-- Porch supports
+		createBPart("SupportL", Vector3.new(1, size.Y, 1), pos + Vector3.new(-size.X/2 + 1.5, 0, size.Z/2 - 1.5), Color3.fromRGB(92, 76, 60), Enum.Material.WoodPlanks)
+		createBPart("SupportR", Vector3.new(1, size.Y, 1), pos + Vector3.new(size.X/2 - 1.5, 0, size.Z/2 - 1.5), Color3.fromRGB(92, 76, 60), Enum.Material.WoodPlanks)
+		-- Flag pole with Faction banner
+		local pole = createBPart("FlagPole", Vector3.new(0.6, size.Y + 8, 0.6), pos + Vector3.new(-size.X/2 + 2, 4, -size.Z/2 + 2), Color3.fromRGB(160, 164, 160), Enum.Material.Metal)
+		createBPart("Banner", Vector3.new(4, 3, 0.3), pos + Vector3.new(-size.X/2 + 4, size.Y + 6, -size.Z/2 + 2), Color3.fromRGB(180, 50, 50), Enum.Material.Fabric)
+
+	elseif buildingId == "TrainingGround" then
+		-- Training Ground details:
+		-- Dirt floor overlay
+		local field = createBPart("DirtOverlay", Vector3.new(size.X - 1, 0.4, size.Z - 1), pos + Vector3.new(0, 0.2, 0), color, Enum.Material.Mud)
+		-- Obstacle course crawl net
+		createBPart("NetFrameL", Vector3.new(1, 4, 1), pos + Vector3.new(-size.X/4, 2, -size.Z/3), Color3.fromRGB(90, 76, 60), Enum.Material.WoodPlanks)
+		createBPart("NetFrameR", Vector3.new(1, 4, 1), pos + Vector3.new(-size.X/4, 2, size.Z/3), Color3.fromRGB(90, 76, 60), Enum.Material.WoodPlanks)
+		createBPart("CrawlNet", Vector3.new(0.25, 3.8, size.Z * 0.6), pos + Vector3.new(-size.X/4, 2, 0), Color3.fromRGB(44, 44, 44), Enum.Material.Fabric)
+		-- Target shooting wooden dummies
+		local function createDummy(dPos: Vector3)
+			createBPart("DummyPost", Vector3.new(0.6, 3, 0.6), dPos + Vector3.new(0, 1.5, 0), Color3.fromRGB(112, 96, 76), Enum.Material.WoodPlanks)
+			createBPart("DummyBody", Vector3.new(1.8, 2.2, 0.6), dPos + Vector3.new(0, 3, 0), Color3.fromRGB(140, 144, 140), Enum.Material.Fabric)
+			createBPart("DummyHead", Vector3.new(1.1, 1.1, 1.1), dPos + Vector3.new(0, 4.4, 0), Color3.fromRGB(112, 96, 76), Enum.Material.WoodPlanks)
+		end
+		createDummy(pos + Vector3.new(size.X/4, 0, -size.Z/4))
+		createDummy(pos + Vector3.new(size.X/4, 0, 0))
+		createDummy(pos + Vector3.new(size.X/4, 0, size.Z/4))
+
+	elseif buildingId == "Barracks" then
+		-- Barracks details:
+		-- Main concrete building block
+		local mainHull = createBPart("MainHull", Vector3.new(size.X - 2, size.Y - 1, size.Z - 2), pos, color, Enum.Material.DiamondPlate)
+		-- Concrete roof cap
+		local roofCap = createBPart("RoofCap", Vector3.new(size.X + 0.8, 1, size.Z + 0.8), pos + Vector3.new(0, size.Y/2 + 0.5, 0), Color3.fromRGB(60, 64, 68), Enum.Material.Concrete)
+		-- Row of lit neon windows on both sides
+		for offsetZ = -size.Z/2 + 4, size.Z/2 - 4, 6 do
+			createBPart("WindowL", Vector3.new(0.3, 2, 2.5), pos + Vector3.new(-size.X/2 + 0.9, 1.5, offsetZ), Color3.fromRGB(240, 220, 120), Enum.Material.Neon)
+			createBPart("WindowR", Vector3.new(0.3, 2, 2.5), pos + Vector3.new(size.X/2 - 0.9, 1.5, offsetZ), Color3.fromRGB(240, 220, 120), Enum.Material.Neon)
+		end
+
+	elseif buildingId == "MedicalTent" then
+		-- Medical Tent details:
+		-- Canvas tent structures (using rotated WedgeParts or block/wedge combination)
+		-- Main block foundation
+		local mainBlock = createBPart("MainBlock", Vector3.new(size.X - 4, size.Y - 3, size.Z - 2), pos - Vector3.new(0, 1.5, 0), color, Enum.Material.Fabric)
+		-- Left wedge roof
+		local roofWedgeL = Instance.new("WedgePart")
+		roofWedgeL.Name = "RoofWedgeL"
+		roofWedgeL.Size = Vector3.new(size.X/2 - 1, 3, size.Z - 2)
+		roofWedgeL.Position = pos + Vector3.new(-size.X/4 + 0.5, size.Y/2 - 1.5, 0)
+		roofWedgeL.Color = color
+		roofWedgeL.Material = Enum.Material.Fabric
+		roofWedgeL.CFrame = roofWedgeL.CFrame * CFrame.Angles(0, math.pi/2, 0)
+		roofWedgeL.Parent = model
+		-- Right wedge roof
+		local roofWedgeR = Instance.new("WedgePart")
+		roofWedgeR.Name = "RoofWedgeR"
+		roofWedgeR.Size = Vector3.new(size.X/2 - 1, 3, size.Z - 2)
+		roofWedgeR.Position = pos + Vector3.new(size.X/4 - 0.5, size.Y/2 - 1.5, 0)
+		roofWedgeR.Color = color
+		roofWedgeR.Material = Enum.Material.Fabric
+		roofWedgeR.CFrame = roofWedgeR.CFrame * CFrame.Angles(0, -math.pi/2, 0)
+		roofWedgeR.Parent = model
+		-- Red Cross symbol on the front face
+		createBPart("CrossVert", Vector3.new(1.2, 4.5, 0.35), pos + Vector3.new(0, -0.5, size.Z/2 - 0.9), Color3.fromRGB(200, 44, 44), Enum.Material.SmoothPlastic)
+		createBPart("CrossHoriz", Vector3.new(4.5, 1.2, 0.35), pos + Vector3.new(0, -0.5, size.Z/2 - 0.85), Color3.fromRGB(200, 44, 44), Enum.Material.SmoothPlastic)
+
+	elseif buildingId == "Armory" then
+		-- Armory details:
+		-- Heavy metallic bunker block
+		local bunker = createBPart("Bunker", Vector3.new(size.X - 2, size.Y - 2, size.Z - 2), pos - Vector3.new(0, 1, 0), color, Enum.Material.Metal)
+		-- Sliding blast doors
+		createBPart("BlastDoorL", Vector3.new(size.X * 0.35, size.Y - 3, 0.6), pos + Vector3.new(-size.X * 0.18, -1.5, size.Z/2 - 1.2), Color3.fromRGB(34, 38, 42), Enum.Material.Metal)
+		createBPart("BlastDoorR", Vector3.new(size.X * 0.35, size.Y - 3, 0.6), pos + Vector3.new(size.X * 0.18, -1.5, size.Z/2 - 1.2), Color3.fromRGB(34, 38, 42), Enum.Material.Metal)
+		-- Glowing active neon stripe on front wall
+		createBPart("ActiveStripe", Vector3.new(size.X - 6, 0.6, 0.4), pos + Vector3.new(0, size.Y/2 - 2, size.Z/2 - 1.1), Color3.fromRGB(80, 220, 110), Enum.Material.Neon)
+
+	elseif buildingId == "CashGenerator" then
+		-- Cash Generator details:
+		-- Mini industrial generator block
+		local generator = createBPart("Generator", Vector3.new(size.X - 2, size.Y - 2, size.Z - 2), pos - Vector3.new(0, 1, 0), color, Enum.Material.CorrodedMetal)
+		-- Transformer box Details:
+		createBPart("TransformerBox", Vector3.new(size.X - 5, 2.5, size.Z - 5), pos + Vector3.new(0, size.Y/2 - 1.8, 0), Color3.fromRGB(30, 34, 38), Enum.Material.Metal)
+		-- Safety warning stripes
+		for i = -3, 3, 2 do
+			createBPart("WarningStripe" .. i, Vector3.new(0.6, 2.3, 0.2), pos + Vector3.new(i * 1.5, size.Y/2 - 1.8, size.Z/2 - 1.2), Color3.fromRGB(196, 160, 74), Enum.Material.SmoothPlastic)
+		end
+		-- Solar panels tilted toward sun
+		createBPart("PanelStem", Vector3.new(0.8, 3.5, 0.8), pos + Vector3.new(0, size.Y/2 + 0.75, 0), Color3.fromRGB(44, 44, 44), Enum.Material.Metal)
+		local panelBoard = createBPart("PanelBoard", Vector3.new(size.X - 2, 0.4, size.Z - 2), pos + Vector3.new(0, size.Y/2 + 2.7, 0), Color3.fromRGB(24, 48, 88), Enum.Material.Glass)
+		panelBoard.CFrame = panelBoard.CFrame * CFrame.Angles(math.rad(15), 0, 0)
+
+		-- --- PHYSICAL TYCOON SYSTEM: Conveyor, Collector & Dropper Loop ---
+		-- Spawn the physical Conveyor belt
+		local conveyorPos = Vector3.new(-67.5, 2.6, -55)
+		local conveyorSize = Vector3.new(13, 0.6, 4.5)
+		local conveyor = makePart(parent, "GeneratorConveyor", conveyorSize, conveyorPos, Color3.fromRGB(28, 32, 35))
+		conveyor.Material = Enum.Material.SmoothPlastic
+		conveyor.Anchored = true
+		conveyor.AssemblyLinearVelocity = Vector3.new(12, 0, 0) -- Pushes parts along positive X direction
+
+		-- Conveyor guard rails
+		makePart(parent, "ConveyorRailN", Vector3.new(13, 1, 0.4), conveyorPos + Vector3.new(0, 0.6, -2.45), Color3.fromRGB(60, 60, 60))
+		makePart(parent, "ConveyorRailS", Vector3.new(13, 1, 0.4), conveyorPos + Vector3.new(0, 0.6, 2.45), Color3.fromRGB(60, 60, 60))
+
+		-- Dropper Nozzle at Generator side
+		local nozzle = makePart(model, "DropperNozzle", Vector3.new(2, 1.5, 2), pos + Vector3.new(size.X/2 - 0.5, size.Y/2 - 2, 0), Color3.fromRGB(24, 28, 30), Enum.Material.Metal)
+
+		-- Collector hopper at the end of the conveyor
+		local collectorPos = Vector3.new(-58, 2.6, -55)
+		local collectorTrigger = makePart(parent, "CashCollectorTrigger", Vector3.new(4, 1.2, 5), collectorPos, Color3.fromRGB(50, 220, 110))
+		collectorTrigger.Material = Enum.Material.Neon
+		collectorTrigger.Transparency = 0.5
+		collectorTrigger.CanCollide = false
+		collectorTrigger.Anchored = true
+
+		local player = game.Players:GetPlayerFromCharacter(parent.Parent) or game.Players:GetPlayerFromCharacter(parent)
+		if not player then
+			local userId = tonumber(parent.Name:match("%d+"))
+			if userId then
+				player = game.Players:GetPlayerByUserId(userId)
+			end
+		end
+
+		if player then
+			-- Connect touched event for the cash collector trigger
+			collectorTrigger.Touched:Connect(function(otherPart)
+				if otherPart.Name == "CashOre" and otherPart:GetAttribute("OwnerId") == player.UserId then
+					otherPart:Destroy()
+					
+					-- Visual pulse effect on collector
+					local originalColor = collectorTrigger.Color
+					collectorTrigger.Color = Color3.fromRGB(255, 255, 255)
+					task.delay(0.1, function()
+						if collectorTrigger and collectorTrigger.Parent then
+							collectorTrigger.Color = originalColor
+						end
+					end)
+
+					-- Add cash to player
+					self.services.EconomyService:Add(player, { cash = 10, supplies = 0 })
+					self:NotifyPlayer(player, "CollectCashOre", true, "+$10 Cash generated!")
+				end
+			end)
+
+			-- Active Dropper loop
+			task.spawn(function()
+				while generator and generator.Parent and parent and parent.Parent do
+					task.wait(2.2)
+					-- Spawn a physical Cash Ore box at nozzle position
+					local ore = Instance.new("Part")
+					ore.Name = "CashOre"
+					ore.Size = Vector3.new(1.4, 1.2, 1.4)
+					ore.Position = nozzle.Position - Vector3.new(0, 1.8, 0)
+					ore.Color = Color3.fromRGB(80, 220, 110)
+					ore.Material = Enum.Material.Neon
+					ore.CustomPhysicalProperties = PhysicalProperties.new(1.2, 0.3, 0.4)
+					ore:SetAttribute("OwnerId", player.UserId)
+					ore.Parent = parent
+
+					-- Cleanup after 10s if it falls off conveyor
+					task.delay(10, function()
+						if ore and ore.Parent then
+							ore:Destroy()
+						end
+					end)
+				end
+			end)
+		end
+
+	elseif buildingId == "SupplyDepot" then
+		-- Supply Depot details:
+		-- Awning frame
+		local depot = createBPart("DepotPostFL", Vector3.new(0.8, size.Y - 1, 0.8), pos + Vector3.new(-size.X/2 + 1.2, -0.5, size.Z/2 - 1.2), Color3.fromRGB(50, 50, 50), Enum.Material.Metal)
+		createBPart("DepotPostFR", Vector3.new(0.8, size.Y - 1, 0.8), pos + Vector3.new(size.X/2 - 1.2, -0.5, size.Z/2 - 1.2), Color3.fromRGB(50, 50, 50), Enum.Material.Metal)
+		createBPart("DepotPostBL", Vector3.new(0.8, size.Y - 1, 0.8), pos + Vector3.new(-size.X/2 + 1.2, -0.5, -size.Z/2 + 1.2), Color3.fromRGB(50, 50, 50), Enum.Material.Metal)
+		createBPart("DepotPostBR", Vector3.new(0.8, size.Y - 1, 0.8), pos + Vector3.new(size.X/2 - 1.2, -0.5, -size.Z/2 + 1.2), Color3.fromRGB(50, 50, 50), Enum.Material.Metal)
+		-- Awning roof canopy
+		createBPart("Canopy", Vector3.new(size.X, 0.8, size.Z), pos + Vector3.new(0, size.Y/2 - 0.8, 0), color, Enum.Material.Fabric)
+		-- Storage crates underneath awning
+		createBPart("WoodenCrate1", Vector3.new(4, 4, 4), pos + Vector3.new(-3, -2, -2), Color3.fromRGB(150, 114, 76), Enum.Material.Wood)
+		createBPart("WoodenCrate2", Vector3.new(3.5, 3.5, 3.5), pos + Vector3.new(3.2, -2.25, -2.2), Color3.fromRGB(130, 96, 60), Enum.Material.Wood)
+		-- Barrel cylinders underneath awning
+		createBPart("MetalBarrel1", Vector3.new(2.8, 4.2, 2.8), pos + Vector3.new(-2.8, -1.9, 3.2), Color3.fromRGB(80, 84, 88), Enum.Material.Metal)
+		createBPart("MetalBarrel2", Vector3.new(2.8, 4.2, 2.8), pos + Vector3.new(2.8, -1.9, 3.2), Color3.fromRGB(80, 84, 88), Enum.Material.Metal)
+
+		-- --- PHYSICAL TYCOON SYSTEM: Conveyor, Collector & Dropper Loop ---
+		-- Spawn the physical Conveyor belt
+		local conveyorPos = Vector3.new(65.5, 2.6, -54)
+		local conveyorSize = Vector3.new(13, 0.6, 4.5)
+		local conveyor = makePart(parent, "DepotConveyor", conveyorSize, conveyorPos, Color3.fromRGB(28, 32, 35))
+		conveyor.Material = Enum.Material.SmoothPlastic
+		conveyor.Anchored = true
+		conveyor.AssemblyLinearVelocity = Vector3.new(-12, 0, 0) -- Pushes parts westbound (negative X direction)
+
+		-- Conveyor guard rails
+		makePart(parent, "ConveyorRailN_S", Vector3.new(13, 1, 0.4), conveyorPos + Vector3.new(0, 0.6, -2.45), Color3.fromRGB(60, 60, 60))
+		makePart(parent, "ConveyorRailS_S", Vector3.new(13, 1, 0.4), conveyorPos + Vector3.new(0, 0.6, 2.45), Color3.fromRGB(60, 60, 60))
+
+		-- Dropper Nozzle at Depot side
+		local nozzle = makePart(model, "DropperNozzle_S", Vector3.new(2, 1.5, 2), pos + Vector3.new(-size.X/2 + 0.5, size.Y/2 - 2, 0), Color3.fromRGB(24, 28, 30), Enum.Material.Metal)
+
+		-- Collector hopper at the end of the conveyor
+		local collectorPos = Vector3.new(58, 2.6, -54)
+		local collectorTrigger = makePart(parent, "SupplyCollectorTrigger", Vector3.new(4, 1.2, 5), collectorPos, Color3.fromRGB(70, 110, 160))
+		collectorTrigger.Material = Enum.Material.Neon
+		collectorTrigger.Transparency = 0.5
+		collectorTrigger.CanCollide = false
+		collectorTrigger.Anchored = true
+
+		local player = game.Players:GetPlayerFromCharacter(parent.Parent) or game.Players:GetPlayerFromCharacter(parent)
+		if not player then
+			local userId = tonumber(parent.Name:match("%d+"))
+			if userId then
+				player = game.Players:GetPlayerByUserId(userId)
+			end
+		end
+
+		if player then
+			-- Connect touched event for the supply collector trigger
+			collectorTrigger.Touched:Connect(function(otherPart)
+				if otherPart.Name == "SupplyCrate" and otherPart:GetAttribute("OwnerId") == player.UserId then
+					otherPart:Destroy()
+					
+					-- Visual pulse effect on collector
+					local originalColor = collectorTrigger.Color
+					collectorTrigger.Color = Color3.fromRGB(255, 255, 255)
+					task.delay(0.1, function()
+						if collectorTrigger and collectorTrigger.Parent then
+							collectorTrigger.Color = originalColor
+						end
+					end)
+
+					-- Add supplies to player
+					self.services.EconomyService:Add(player, { cash = 0, supplies = 2 })
+					self:NotifyPlayer(player, "CollectSupplyCrate", true, "+2 Supplies generated!")
+				end
+			end)
+
+			-- Active Dropper loop
+			task.spawn(function()
+				while depot and depot.Parent and parent and parent.Parent do
+					task.wait(2.5)
+					-- Spawn a physical Supply Crate box at nozzle position
+					local ore = Instance.new("Part")
+					ore.Name = "SupplyCrate"
+					ore.Size = Vector3.new(1.4, 1.2, 1.4)
+					ore.Position = nozzle.Position - Vector3.new(0, 1.8, 0)
+					ore.Color = Color3.fromRGB(70, 110, 160)
+					ore.Material = Enum.Material.Neon
+					ore.CustomPhysicalProperties = PhysicalProperties.new(1.2, 0.3, 0.4)
+					ore:SetAttribute("OwnerId", player.UserId)
+					ore.Parent = parent
+
+					-- Cleanup after 10s if it falls off conveyor
+					task.delay(10, function()
+						if ore and ore.Parent then
+							ore:Destroy()
+						end
+					end)
+				end
+			end)
+		end
+	end
+
+	-- Make building label
+	makeLabel(model, layout.label, pos + Vector3.new(0, size.Y/2 + 5, size.Z/2 + 1))
 end
 
 function WorldService:MakeTycoonMap(parent: Instance, player: Player)
@@ -406,22 +735,18 @@ function WorldService:MakeTycoonMap(parent: Instance, player: Player)
 	collector.Material = Enum.Material.Neon
 	makeGroundLabel(parent, "COLLECT CASH", Vector3.new(-58, 3.3, -55), Vector3.new(16, 0.2, 5))
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Collect"
-	prompt.ObjectText = "Cash Generator"
-	prompt.HoldDuration = 0.2
-	prompt.MaxActivationDistance = 14
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = collector
+	makeTouchPad(collector, player, function()
+		local ok, msg = self.services.EconomyService:ClaimIncome(player)
+		self:NotifyPlayer(player, "ClaimIncome", ok, msg)
+	end)
 
-	prompt.Triggered:Connect(function(triggeringPlayer)
-		if triggeringPlayer ~= player then
-			return
-		end
+	local supplyCollector = makePart(parent, "Supply Collector Pad", Vector3.new(18, 0.8, 14), Vector3.new(58, 2.8, -54), Color3.fromRGB(70, 110, 160))
+	supplyCollector.Material = Enum.Material.Neon
+	makeGroundLabel(parent, "COLLECT SUPPLIES", Vector3.new(58, 3.3, -54), Vector3.new(16, 0.2, 5))
 
-		local ok = self.services.EconomyService:ClaimIncome(player)
-		local message = if ok then "Income claimed" else "No income ready"
-		self:NotifyPlayer(player, "ClaimIncome", ok, message)
+	makeTouchPad(supplyCollector, player, function()
+		local ok, msg = self.services.EconomyService:ClaimIncome(player)
+		self:NotifyPlayer(player, "ClaimIncome", ok, msg)
 	end)
 
 	for index = 1, 5 do
@@ -454,24 +779,12 @@ function WorldService:MakePurchasePad(parent: Instance, player: Player, building
 
 	makeLabel(parent, string.format("BUY %s\n$%d | S%d", layout.label, cost.cash or 0, cost.supplies or 0), layout.padPosition + Vector3.new(0, 6, 0))
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Buy"
-	prompt.ObjectText = layout.label
-	prompt.HoldDuration = 0.25
-	prompt.MaxActivationDistance = 14
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = pad
-
-	prompt.Triggered:Connect(function(triggeringPlayer)
-		if triggeringPlayer ~= player then
-			return
-		end
-
+	makeTouchPad(pad, player, function()
 		if self.services.BaseService:BuyBuilding(player, buildingId) then
 			self:RefreshBase(player)
 			self:NotifyPlayer(player, "BuyBuilding", true, "Purchased " .. layout.label)
 		else
-			self:NotifyPlayer(player, "BuyBuilding", false, "Cannot buy " .. layout.label)
+			self:NotifyPlayer(player, "BuyBuilding", false, "Cannot afford " .. layout.label)
 		end
 	end)
 end
@@ -489,24 +802,12 @@ function WorldService:MakeCommandUpgradePad(parent: Instance, player: Player)
 	pad.Material = Enum.Material.Neon
 	makeLabel(parent, string.format("UPGRADE COMMAND\nLV %d\n$%d | S%d", nextLevel, costCash, costSupplies), Vector3.new(24, 9, -34))
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Upgrade"
-	prompt.ObjectText = "Command Center"
-	prompt.HoldDuration = 0.25
-	prompt.MaxActivationDistance = 14
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = pad
-
-	prompt.Triggered:Connect(function(triggeringPlayer)
-		if triggeringPlayer ~= player then
-			return
-		end
-
+	makeTouchPad(pad, player, function()
 		if self.services.BaseService:UpgradeCommandCenter(player) then
 			self:RefreshBase(player)
 			self:NotifyPlayer(player, "UpgradeCommandCenter", true, "Command Center upgraded")
 		else
-			self:NotifyPlayer(player, "UpgradeCommandCenter", false, "Cannot upgrade Command Center")
+			self:NotifyPlayer(player, "UpgradeCommandCenter", false, "Cannot afford Command Center upgrade")
 		end
 	end)
 end
