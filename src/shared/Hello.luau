@@ -1,3 +1,3 @@
-return function()
-	print("Hello, world!")
-end
+return {
+	Message = "Hello from Shared"
+}
